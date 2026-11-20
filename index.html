@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="PocketCut" />
+  <title>PocketCut — Mobile Video Editor</title>
+  <style>
+    :root {
+      --bg: #0b0d12;
+      --surface: #151923;
+      --surface-2: #1f2533;
+      --accent: #ff5e1a;
+      --accent-2: #2563eb;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --border: #2a3244;
+      --safe-top: env(safe-area-inset-top, 12px);
+      --safe-bottom: env(safe-area-inset-bottom, 16px);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      overflow: hidden;
+      padding-top: var(--safe-top);
+      padding-bottom: var(--safe-bottom);
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .brand {
+      font-weight: 800;
+      font-size: 17px;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand span {
+      background: linear-gradient(135deg, var(--accent), #ff9100);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    button, .file-btn {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 13px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: transform 0.1s ease, background 0.15s ease;
+    }
+
+    button:active, .file-btn:active {
+      transform: scale(0.96);
+    }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    /* Stage / Preview */
+    .stage {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      position: relative;
+      overflow: hidden;
+      background: #06070a;
+    }
+
+    canvas {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+      background: #000;
+      touch-action: none;
+    }
+
+    .empty-state {
+      position: absolute;
+      inset: 16px;
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      gap: 12px;
+      background: rgba(21, 25, 35, 0.7);
+    }
+
+    .empty-state p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 260px;
+      line-height: 1.4;
+    }
+
+    /* Transport & Controls */
+    .controls {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 12px 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .transport-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .timecode {
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .pill-group {
+      display: flex;
+      background: var(--bg);
+      padding: 3px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .pill-group button {
+      border: none;
+      background: transparent;
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 7px;
+      color: var(--muted);
+    }
+
+    .pill-group button.active {
+      background: var(--surface-2);
+      color: #fff;
+    }
+
+    /* Dual Range Trim Slider */
+    .trim-box {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .trim-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .slider-container {
+      position: relative;
+      height: 36px;
+      display: flex;
+      align-items: center;
+    }
+
+    .slider-track {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 8px;
+      background: var(--bg);
+      border-radius: 999px;
+      border: 1px solid var(--border);
+    }
+
+    .slider-range {
+      position: absolute;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 999px;
+    }
+
+    .playhead {
+      position: absolute;
+      width: 2px;
+      height: 22px;
+      background: #fff;
+      top: 7px;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    input[type="range"].dual {
+      position: absolute;
+      width: 100%;
+      pointer-events: none;
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      margin: 0;
+      z-index: 4;
+    }
+
+    input[type="range"].dual::-webkit-slider-thumb {
+      pointer-events: auto;
+      -webkit-appearance: none;
+      appearance: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #fff;
+      border: 3px solid var(--accent);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+      cursor: pointer;
+    }
+
+    /* Text Overlay Row */
+    .overlay-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .overlay-row input[type="text"] {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 16px; /* Prevents iOS Safari auto-zoom on focus */
+      user-select: text;
+    }
+
+    .overlay-row input[type="color"] {
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg);
+      padding: 2px;
+    }
+
+    /* Export Progress Modal */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(6, 7, 10, 0.88);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 50;
+      text-align: center;
+      gap: 14px;
+    }
+
+    .modal.open {
+      display: flex;
+    }
+
+    .progress-bar {
+      width: 100%;
+      max-width: 280px;
+      height: 10px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), #ff9100);
+      transition: width 0.1s linear;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">🎬 <span>PocketCut</span></div>
+    <div class="header-actions">
+      <label class="file-btn" for="videoInput">📂 Load</label>
+      <input type="file" id="videoInput" accept="video/*" />
+      <button id="exportBtn" class="primary" disabled>Export</button>
+    </div>
+  </header>
+
+  <main class="stage" id="stage">
+    <canvas id="canvas"></canvas>
+    <div class="empty-state" id="emptyState">
+      <div style="font-size: 36px;">📱</div>
+      <strong>Load a Clip from Photos</strong>
+      <p>Tap <b>Load</b> above to pick a video, trim In/Out points, switch aspect ratios, drag text on the preview, and export.</p>
+      <label class="file-btn primary" for="videoInput" style="background: var(--accent); border-color: var(--accent);">Choose Video</label>
+    </div>
+  </main>
+
+  <section class="controls">
+    <!-- Playback & Aspect Ratio -->
+    <div class="transport-row">
+      <button id="playBtn" disabled>▶ Play</button>
+      <div class="timecode" id="timecode">00:00.0 / 00:00.0</div>
+      <div class="pill-group" id="aspectGroup">
+        <button data-aspect="9:16" class="active">9:16</button>
+        <button data-aspect="16:9">16:9</button>
+      </div>
+      <div class="pill-group" id="fitGroup">
+        <button data-fit="fill" class="active">Fill</button>
+        <button data-fit="blur">BlurBG</button>
+      </div>
+    </div>
+
+    <!-- Dual Trim Sliders -->
+    <div class="trim-box">
+      <div class="trim-labels">
+        <span id="inLabel">IN: 0.0s</span>
+        <span id="durLabel">CLIP: 0.0s</span>
+        <span id="outLabel">OUT: 0.0s</span>
+      </div>
+      <div class="slider-container">
+        <div class="slider-track"></div>
+        <div class="slider-range" id="sliderRange"></div>
+        <div class="playhead" id="playhead"></div>
+        <input type="range" id="inSlider" class="dual" min="0" max="100" step="0.05" value="0" disabled />
+        <input type="range" id="outSlider" class="dual" min="0" max="100" step="0.05" value="100" disabled />
+      </div>
+    </div>
+
+    <!-- Overlay Text -->
+    <div class="overlay-row">
+      <input type="text" id="overlayText" placeholder="Add title overlay (drag on video)..." maxlength="50" />
+      <input type="color" id="textColor" value="#ffffff" title="Text Color" />
+    </div>
+  </section>
+
+  <!-- Export Overlay -->
+  <div class="modal" id="exportModal">
+    <h3 id="exportStatus" style="margin:0;">Rendering Video...</h3>
+    <p id="exportSub" style="margin:0; color:var(--muted); font-size:13px;">Keep Safari open while exporting in real time.</p>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div id="downloadContainer" style="display:flex; gap:10px; margin-top:8px;"></div>
+  </div>
+
+  <!-- Hidden source video element with iOS Safari inline playback attributes -->
+  <video id="sourceVideo" playsinline webkit-playsinline muted crossorigin="anonymous" style="display:none;"></video>
+
+  <script>
+    const video = document.getElementById('sourceVideo');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const videoInput = document.getElementById('videoInput');
+    const emptyState = document.getElementById('emptyState');
+    const playBtn = document.getElementById('playBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const timecode = document.getElementById('timecode');
+
+    const inSlider = document.getElementById('inSlider');
+    const outSlider = document.getElementById('outSlider');
+    const sliderRange = document.getElementById('sliderRange');
+    const playhead = document.getElementById('playhead');
+    const inLabel = document.getElementById('inLabel');
+    const outLabel = document.getElementById('outLabel');
+    const durLabel = document.getElementById('durLabel');
+
+    const overlayTextInput = document.getElementById('overlayText');
+    const textColorInput = document.getElementById('textColor');
+
+    const exportModal = document.getElementById('exportModal');
+    const exportStatus = document.getElementById('exportStatus');
+    const exportSub = document.getElementById('exportSub');
+    const progressFill = document.getElementById('progressFill');
+    const downloadContainer = document.getElementById('downloadContainer');
+
+    // Editor State
+    let duration = 0;
+    let trimIn = 0;
+    let trimOut = 0;
+    let aspect = '9:16';
+    let fitMode = 'fill'; // 'fill' (center crop) or 'blur' (blurred pillar/letterbox)
+    let isExporting = false;
+    let animId = null;
+
+    // Draggable Text State (normalized 0..1 coordinates)
+    let textPos = { x: 0.5, y: 0.82 };
+    let isDraggingText = false;
+
+    // Web Audio API routing (keeps original video audio during playback & export on iOS)
+    let audioCtx = null;
+    let audioSource = null;
+    let audioDest = null;
+
+    function initAudioGraph() {
+      if (audioCtx) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return;
+      }
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContextClass();
+      audioSource = audioCtx.createMediaElementSource(video);
+      audioDest = audioCtx.createMediaStreamDestination();
+      audioSource.connect(audioCtx.destination); // Speaker output
+      audioSource.connect(audioDest);            // Export stream output
+    }
+
+    function setCanvasResolution() {
+      if (aspect === '9:16') {
+        canvas.width = 720;
+        canvas.height = 1280;
+      } else {
+        canvas.width = 1280;
+        canvas.height = 720;
+      }
+      drawFrame();
+    }
+
+    function formatTime(sec) {
+      if (!isFinite(sec)) return '00:00.0';
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      const d = Math.floor((sec % 1) * 10);
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${d}`;
+    }
+
+    function updateTrimUI() {
+      const pctIn = duration ? (trimIn / duration) * 100 : 0;
+      const pctOut = duration ? (trimOut / duration) * 100 : 100;
+      sliderRange.style.left = pctIn + '%';
+      sliderRange.style.width = Math.max(0, pctOut - pctIn) + '%';
+      inLabel.textContent = `IN: ${trimIn.toFixed(1)}s`;
+      outLabel.textContent = `OUT: ${trimOut.toFixed(1)}s`;
+      durLabel.textContent = `CLIP: ${Math.max(0, trimOut - trimIn).toFixed(1)}s`;
+    }
+
+    function updatePlayhead() {
+      const pct = duration ? (video.currentTime / duration) * 100 : 0;
+      playhead.style.left = Math.min(100, Math.max(0, pct)) + '%';
+      timecode.textContent = `${formatTime(video.currentTime)} / ${formatTime(duration)}`;
+    }
+
+    // Load Video File
+    videoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const url = URL.createObjectURL(file);
+      video.src = url;
+      video.load();
+
+      video.onloadedmetadata = () => {
+        duration = video.duration;
+        trimIn = 0;
+        trimOut = duration;
+
+        inSlider.max = duration;
+        outSlider.max = duration;
+        inSlider.value = 0;
+        outSlider.value = duration;
+
+        inSlider.disabled = false;
+        outSlider.disabled = false;
+        playBtn.disabled = false;
+        exportBtn.disabled = false;
+        emptyState.style.display = 'none';
+
+        updateTrimUI();
+        video.currentTime = 0.01;
+      };
+
+      video.onseeked = () => {
+        drawFrame();
+        updatePlayhead();
+      };
+    });
+
+    // Aspect Ratio & Fit Mode Toggles
+    document.getElementById('aspectGroup').addEventListener('click', (e) => {
+      if (e.target.tagName !== 'BUTTON') return;
+      document.querySelectorAll('#aspectGroup button').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      aspect = e.target.dataset.aspect;
+      setCanvasResolution();
+    });
+
+    document.getElementById('fitGroup').addEventListener('click', (e) => {
+      if (e.target.tagName !== 'BUTTON') return;
+      document.querySelectorAll('#fitGroup button').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      fitMode = e.target.dataset.fit;
+      drawFrame();
+    });
+
+    // Touch Trim Sliders
+    inSlider.addEventListener('input', () => {
+      let val = parseFloat(inSlider.value);
+      if (val >= trimOut - 0.2) {
+        val = Math.max(0, trimOut - 0.2);
+        inSlider.value = val;
+      }
+      trimIn = val;
+      video.currentTime = trimIn;
+      updateTrimUI();
+    });
+
+    outSlider.addEventListener('input', () => {
+      let val = parseFloat(outSlider.value);
+      if (val <= trimIn + 0.2) {
+        val = Math.min(duration, trimIn + 0.2);
+        outSlider.value = val;
+      }
+      trimOut = val;
+      video.currentTime = trimOut;
+      updateTrimUI();
+    });
+
+    // Play / Pause Loop
+    playBtn.addEventListener('click', () => {
+      initAudioGraph();
+      video.muted = false;
+
+      if (video.paused) {
+        if (video.currentTime < trimIn || video.currentTime >= trimOut - 0.05) {
+          video.currentTime = trimIn;
+        }
+        video.play();
+        playBtn.textContent = '⏸ Pause';
+        renderLoop();
+      } else {
+        video.pause();
+        playBtn.textContent = '▶ Play';
+        cancelAnimationFrame(animId);
+      }
+    });
+
+    function renderLoop() {
+      if (video.paused || video.ended) return;
+
+      if (video.currentTime >= trimOut) {
+        if (isExporting) {
+          finishExport();
+          return;
+        } else {
+          video.currentTime = trimIn;
+        }
+      }
+
+      drawFrame();
+      updatePlayhead();
+
+      if (isExporting) {
+        const progress = ((video.currentTime - trimIn) / (trimOut - trimIn)) * 100;
+        progressFill.style.width = Math.min(100, Math.max(0, progress)) + '%';
+      }
+
+      animId = requestAnimationFrame(renderLoop);
+    }
+
+    // Canvas Rendering Pipeline
+    function drawFrame() {
+      const cw = canvas.width;
+      const ch = canvas.height;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, cw, ch);
+
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+
+      if (vw && vh) {
+        const videoRatio = vw / vh;
+        const canvasRatio = cw / ch;
+
+        if (fitMode === 'blur') {
+          // 1. Blurred background fill
+          ctx.save();
+          ctx.filter = 'blur(24px) brightness(0.65)';
+          let bgW = cw, bgH = ch, bgX = 0, bgY = 0;
+          if (videoRatio > canvasRatio) {
+            bgW = ch * videoRatio;
+            bgX = (cw - bgW) / 2;
+          } else {
+            bgH = cw / videoRatio;
+            bgY = (ch - bgH) / 2;
+          }
+          ctx.drawImage(video, bgX, bgY, bgW, bgH);
+          ctx.restore();
+
+          // 2. Sharp foreground fit
+          let fgW = cw, fgH = ch, fgX = 0, fgY = 0;
+          if (videoRatio > canvasRatio) {
+            fgH = cw / videoRatio;
+            fgY = (ch - fgH) / 2;
+          } else {
+            fgW = ch * videoRatio;
+            fgX = (cw - fgW) / 2;
+          }
+          ctx.drawImage(video, fgX, fgY, fgW, fgH);
+        } else {
+          // Center Crop Fill
+          let drawW = cw, drawH = ch, offsetX = 0, offsetY = 0;
+          if (videoRatio > canvasRatio) {
+            drawW = ch * videoRatio;
+            offsetX = (cw - drawW) / 2;
+          } else {
+            drawH = cw / videoRatio;
+            offsetY = (ch - drawH) / 2;
+          }
+          ctx.drawImage(video, offsetX, offsetY, drawW, drawH);
+        }
+      }
+
+      // Draw Text Overlay
+      const text = overlayTextInput.value.trim();
+      if (text) {
+        const fontSize = Math.round(cw * 0.055);
+        ctx.save();
+        ctx.font = `800 ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const tx = textPos.x * cw;
+        const ty = textPos.y * ch;
+
+        // Subtle pill backing for legibility
+        const metrics = ctx.measureText(text);
+        const padX = fontSize * 0.55;
+        const padY = fontSize * 0.35;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.beginPath();
+        ctx.roundRect(
+          tx - metrics.width / 2 - padX,
+          ty - fontSize / 2 - padY,
+          metrics.width + padX * 2,
+          fontSize + padY * 2,
+          14
+        );
+        ctx.fill();
+
+        ctx.fillStyle = textColorInput.value;
+        ctx.fillText(text, tx, ty);
+        ctx.restore();
+      }
+    }
+
+    overlayTextInput.addEventListener('input', drawFrame);
+    textColorInput.addEventListener('input', drawFrame);
+
+    // Touch Dragging for Overlay Text on Canvas
+    function updateTextPositionFromTouch(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      textPos.x = Math.min(0.92, Math.max(0.08, (clientX - rect.left) / rect.width));
+      textPos.y = Math.min(0.94, Math.max(0.06, (clientY - rect.top) / rect.height));
+      drawFrame();
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+      if (!overlayTextInput.value.trim()) return;
+      isDraggingText = true;
+      updateTextPositionFromTouch(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!isDraggingText) return;
+      updateTextPositionFromTouch(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('pointerup', () => {
+      isDraggingText = false;
+    });
+
+    // Export Engine (MediaRecorder with iOS Safari MP4 Priority)
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let exportMime = '';
+
+    exportBtn.addEventListener('click', () => {
+      initAudioGraph();
+      video.pause();
+      playBtn.textContent = '▶ Play';
+      cancelAnimationFrame(animId);
+
+      isExporting = true;
+      recordedChunks = [];
+      downloadContainer.innerHTML = '';
+      progressFill.style.width = '0%';
+      exportStatus.textContent = 'Rendering Clip...';
+      exportSub.textContent = 'Recording trimmed video & audio locally on device.';
+      exportModal.classList.add('open');
+
+      // Detect best supported container for iOS Safari / Desktop
+      const mimeCandidates = [
+        'video/mp4;codecs=avc1,mp4a.40.2',
+        'video/mp4',
+        'video/webm;codecs=vp9,opus',
+        'video/webm'
+      ];
+      exportMime = mimeCandidates.find(type => MediaRecorder.isTypeSupported(type)) || '';
+
+      const canvasStream = canvas.captureStream(30);
+      const audioTracks = audioDest ? audioDest.stream.getAudioTracks() : [];
+      const combinedStream = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...audioTracks
+      ]);
+
+      const options = exportMime
+        ? { mimeType: exportMime, videoBitsPerSecond: 5_000_000 }
+        : { videoBitsPerSecond: 5_000_000 };
+
+      mediaRecorder = new MediaRecorder(combinedStream, options);
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const finalMime = mediaRecorder.mimeType || exportMime || 'video/mp4';
+        const ext = finalMime.includes('webm') ? 'webm' : 'mp4';
+        const blob = new Blob(recordedChunks, { type: finalMime });
+        const blobUrl = URL.createObjectURL(blob);
+        const fileName = `PocketCut_${Date.now()}.${ext}`;
+
+        exportStatus.textContent = 'Export Complete!';
+        exportSub.textContent = 'Tap Save / Share to add it to your iPhone Photos.';
+        progressFill.style.width = '100%';
+
+        // Native iOS Share Sheet button (saves directly to Camera Roll)
+        if (navigator.canShare) {
+          const fileObj = new File([blob], fileName, { type: finalMime });
+          if (navigator.canShare({ files: [fileObj] })) {
+            const shareBtn = document.createElement('button');
+            shareBtn.className = 'primary';
+            shareBtn.textContent = '📤 Share / Save Video';
+            shareBtn.onclick = () => navigator.share({ files: [fileObj], title: fileName });
+            downloadContainer.appendChild(shareBtn);
+          }
+        }
+
+        // Standard Download fallback
+        const dlLink = document.createElement('a');
+        dlLink.href = blobUrl;
+        dlLink.download = fileName;
+        dlLink.className = 'file-btn';
+        dlLink.textContent = '⬇ Download';
+        downloadContainer.appendChild(dlLink);
+
+        // Close button
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'Done';
+        closeBtn.onclick = () => exportModal.classList.remove('open');
+        downloadContainer.appendChild(closeBtn);
+      };
+
+      video.muted = false;
+      video.currentTime = trimIn;
+      video.onseeked = () => {
+        video.onseeked = () => {
+          drawFrame();
+          updatePlayhead();
+        };
+        mediaRecorder.start(250);
+        video.play();
+        renderLoop();
+      };
+    });
+
+    function finishExport() {
+      isExporting = false;
+      video.pause();
+      cancelAnimationFrame(animId);
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+    }
+
+    // Initialize default 9:16 canvas
+    setCanvasResolution();
+  </script>
+</body>
+</html>
